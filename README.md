@@ -1,15 +1,11 @@
-# Chat2BI
-
 ## Quick Start
 
 ```bash
-git clone https://github.com/mMrBun/Chat2BI.git
+conda create -n chatGLM3 python=3.10
 
-conda create -n Chat2BI python=3.10
+conda activate chatGLM3
 
-cona activate Chat2BI
-
-cd Chat2BI
+cd chat
 
 pip install -r requirements.txt
 
