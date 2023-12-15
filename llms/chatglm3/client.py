@@ -12,7 +12,7 @@ from .conversation import Conversation
 
 TOOL_PROMPT = 'Answer the following questions as best as you can. You have access to the following tools:'
 
-MODEL_PATH = os.environ.get('MODEL_PATH', './data/models/llm/chatglm3-6b')
+MODEL_PATH = os.environ.get('MODEL_PATH', '/mnt/user2/workspace/Aug/model/chatglm3-6b')
 PT_PATH = os.environ.get('PT_PATH', None)
 TOKENIZER_PATH = os.environ.get("TOKENIZER_PATH", MODEL_PATH)
 
