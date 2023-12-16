@@ -1,16 +1,20 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable
 import os
-from typing import Any, Protocol
+from typing import Any, Protocol, List
 
 from huggingface_hub.inference._text_generation import TextGenerationStreamResponse, Token
 import torch
 from transformers import AutoModel, AutoTokenizer, AutoConfig
 
+from configs import CHATGLM3_MODEL_PATH
+from core.build_charts.format_echarts import EchartsBuilder
 from .conversation import Conversation
+from ..qwen.prompt.qwen_prompt_config import ECHARTS_PROMPT
 
-TOOL_PROMPT = 'Answer the following questions as best as you can. You have access to the following tools:'
+TOOL_PROMPT = 'Answer the following questions as best as you can. You have access to the following core:'
 
 MODEL_PATH = os.environ.get('MODEL_PATH', '/mnt/user2/workspace/Aug/model/chatglm3-6b')
 PT_PATH = os.environ.get('PT_PATH', None)
@@ -31,7 +35,13 @@ class Client(Protocol):
                         ) -> Iterable[TextGenerationStreamResponse]:
         ...
 
-    def generate_chat(self, query, history, role=None):
+    def generate_chat(self, query, history, top_p, temperature, role=None):
+        ...
+
+    def format_glm_tools_schema(self, list_of_plugin_info):
+        ...
+
+    def create_echarts_code(self, observation):
         ...
 
 
@@ -138,7 +148,7 @@ class HFClient(Client):
         }]
 
         if tools:
-            chat_history[0]['tools'] = tools
+            chat_history[0]['core'] = tools
 
         for conversation in history[:-1]:
             chat_history.append({
@@ -171,5 +181,52 @@ class HFClient(Client):
                 )
             )
 
-    def generate_chat(self, query, history, role="user"):
-        return self.model.chat(tokenizer=self.tokenizer, query=query, history=history, role=role)
+    def generate_chat(self, query, history, top_p, temperature, role="user"):
+        return self.model.chat(tokenizer=self.tokenizer, top_p=top_p, temperature=temperature, query=query,
+                               history=history, role=role)
+
+    def format_glm_tools_schema(self, list_of_plugin_info):
+        tools = []
+        for item in list_of_plugin_info:
+            # 创建新的JSON结构
+            transformed_json = {
+                "name": item["api_name"],
+                "description": item["api_description"],
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            }
+
+            # 处理必需参数
+            for param in item["required_parameters"]:
+                # 在properties中添加参数
+                transformed_json["parameters"]["properties"][param["name"]] = {
+                    "description": param["description"]
+                }
+                # 在required列表中添加参数名
+                transformed_json["parameters"]["required"].append(param["name"])
+
+            # 处理可选参数
+            for param in item["optional_parameters"]:
+                # 在properties中添加参数
+                transformed_json["parameters"]["properties"][param["name"]] = {
+                    "description": param["description"]
+                }
+                # 可选参数不需要添加到required列表中
+            tools.append(transformed_json)
+        return tools
+
+    def create_echarts_code(self, observation):
+        echarts_prompt = ECHARTS_PROMPT.format(
+            observation=observation
+        )
+        output = self.model.generate(query=echarts_prompt, tokenizer=self.tokenizer, history=[])
+        output = json.loads(output)
+        chart_type = output.get("chart_type")
+        category = output.get("data").get("categories")
+        data = output.get("data").get("series")
+        chart_builder = EchartsBuilder(category, data)
+        code = chart_builder.build_chart(chart_type)
+        return code
