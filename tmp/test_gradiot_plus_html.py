@@ -1,13 +1,4 @@
 # -*- coding: UTF-8 -*-
-"""
-Author: SuTo
-Date: 2023-09-25 08:28:03
-LastEditors: Do not edit
-LastEditTime: 2023-10-05 17:15:15
-Description: 
-"""
-
-
 # 解决代理错误
 import configparser
 import os
